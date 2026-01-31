@@ -26,6 +26,12 @@ TIME=$(date +%H:%M:%S)
 LOG_FILE="$LOGS_DIR/$DATE.log"
 TEMP_DIR=$(mktemp -d)
 
+# Rate limiting configuration
+MAX_TURNS_REVIEW=5          # Max agentic turns for review phase
+MAX_TURNS_IMPLEMENT=15      # Max agentic turns for implementation phase
+TIMEOUT_REVIEW=120          # Max seconds for review phase (2 min)
+TIMEOUT_IMPLEMENT=300       # Max seconds for implementation phase (5 min)
+
 # Cleanup temp directory on exit
 trap "rm -rf $TEMP_DIR" EXIT
 
@@ -41,32 +47,38 @@ echo "Evolution Run: $DATE $TIME" >> "$LOG_FILE"
 echo "========================================" >> "$LOG_FILE"
 
 log "Starting evolution cycle..."
+log "Rate limits: review=${MAX_TURNS_REVIEW} turns/${TIMEOUT_REVIEW}s, implement=${MAX_TURNS_IMPLEMENT} turns/${TIMEOUT_IMPLEMENT}s"
 
 # Step 1: Review Phase - Suggest a feature
 log "Phase 1: Reviewing codebase and generating feature suggestion..."
 
 REVIEW_PROMPT="You are reviewing the API of Life codebase to suggest ONE new feature to implement.
 
+IMPORTANT CONSTRAINTS (budget-conscious):
+- Suggest a SMALL, SIMPLE feature (max 50 lines of code changes)
+- Must be implementable in under 5 minutes
+- NO complex features like authentication, databases, external APIs, or caching
+- NO refactoring or architectural changes
+- Think: add a field, add a simple endpoint, add basic validation
+
 Guidelines for your suggestion:
 - Suggest an incremental, buildable feature that adds genuine value
 - Avoid breaking existing functionality
-- The feature should be implementable in a single session
-- Prefer features that enhance the API's capabilities (new endpoints, data validation, filtering, sorting, etc.)
-- Keep it focused - one clear feature, not multiple changes
-- Consider what would make this API more useful for real-world use
+- Prefer simple enhancements: new query parameters, additional fields, basic filtering
+- Keep it focused - one clear, small feature
 
-Review the current codebase in $SRC_DIR and suggest ONE specific feature.
+Review the current codebase in $SRC_DIR and suggest ONE specific small feature.
 
 Format your response as:
-FEATURE: [Short feature name]
-DESCRIPTION: [2-3 sentence description of what it does and why it's valuable]
-IMPLEMENTATION: [Brief outline of what needs to be added/changed]"
+FEATURE: [Short feature name - max 5 words]
+DESCRIPTION: [1-2 sentences only]
+IMPLEMENTATION: [Brief bullet points of what to change]"
 
 cd "$PROJECT_DIR"
 SUGGESTION_FILE="$TEMP_DIR/suggestion.txt"
 
-if ! claude --print "$REVIEW_PROMPT" > "$SUGGESTION_FILE" 2>> "$LOG_FILE"; then
-    log "ERROR: Failed to generate feature suggestion"
+if ! timeout ${TIMEOUT_REVIEW}s claude --print --max-turns $MAX_TURNS_REVIEW "$REVIEW_PROMPT" > "$SUGGESTION_FILE" 2>> "$LOG_FILE"; then
+    log "ERROR: Failed to generate feature suggestion (timeout or error)"
     exit 1
 fi
 
@@ -84,17 +96,26 @@ IMPLEMENT_PROMPT="Implement the following feature in the API of Life codebase:
 
 $(cat "$SUGGESTION_FILE")
 
-Important guidelines:
-- Modify $SRC_DIR/main.py to add the feature
-- Add corresponding tests in $SRC_DIR/tests/test_main.py
+IMPORTANT CONSTRAINTS (budget-conscious):
+- Keep changes MINIMAL - aim for under 50 lines changed
+- Only modify $SRC_DIR/main.py and $SRC_DIR/tests/test_main.py
+- Do NOT create new files
+- Do NOT install new dependencies
+- Add 1-3 tests maximum
+- If the feature seems too complex, implement a simpler version
+
+Guidelines:
 - Follow the existing code style and patterns
 - Ensure backward compatibility with existing endpoints
 - Keep changes focused on the suggested feature only
 
-Implement this feature now."
+Implement this feature now. Be concise."
 
-if ! claude --print "$IMPLEMENT_PROMPT" --allowedTools Edit,Write,Read,Bash,Glob,Grep >> "$LOG_FILE" 2>&1; then
-    log "ERROR: Failed to implement feature"
+if ! timeout ${TIMEOUT_IMPLEMENT}s claude --print --max-turns $MAX_TURNS_IMPLEMENT "$IMPLEMENT_PROMPT" --allowedTools Edit,Write,Read,Glob,Grep >> "$LOG_FILE" 2>&1; then
+    log "ERROR: Failed to implement feature (timeout or error)"
+    # Revert any partial changes
+    cd "$PROJECT_DIR"
+    git checkout -- . 2>/dev/null || true
     exit 1
 fi
 
