@@ -52,7 +52,7 @@ log "Rate limits: review=${MAX_TURNS_REVIEW} turns/${TIMEOUT_REVIEW}s, implement
 # Step 1: Review Phase - Suggest a feature
 log "Phase 1: Reviewing codebase and generating feature suggestion..."
 
-REVIEW_PROMPT="You are reviewing the API of Life codebase to suggest ONE new feature to implement.
+REVIEW_PROMPT="You are reviewing a FastAPI codebase to suggest ONE new feature to implement.
 
 IMPORTANT CONSTRAINTS (budget-conscious):
 - Suggest a SMALL, SIMPLE feature (max 50 lines of code changes)
@@ -67,14 +67,16 @@ Guidelines for your suggestion:
 - Prefer simple enhancements: new query parameters, additional fields, basic filtering
 - Keep it focused - one clear, small feature
 
-Review the current codebase in $SRC_DIR and suggest ONE specific small feature.
+The codebase has two files: main.py (the API) and tests/test_main.py (the tests).
+Suggest ONE specific small feature.
 
 Format your response as:
 FEATURE: [Short feature name - max 5 words]
 DESCRIPTION: [1-2 sentences only]
 IMPLEMENTATION: [Brief bullet points of what to change]"
 
-cd "$PROJECT_DIR"
+# Run Claude from src/ directory so it can only see/edit those files
+cd "$SRC_DIR"
 SUGGESTION_FILE="$TEMP_DIR/suggestion.txt"
 
 if ! timeout ${TIMEOUT_REVIEW}s claude --print --max-turns $MAX_TURNS_REVIEW "$REVIEW_PROMPT" > "$SUGGESTION_FILE" 2>> "$LOG_FILE"; then
@@ -92,15 +94,16 @@ FEATURE_NAME=$(grep -m1 "^FEATURE:" "$SUGGESTION_FILE" | sed 's/FEATURE: *//' ||
 # Step 2: Implementation Phase
 log "Phase 2: Implementing feature: $FEATURE_NAME"
 
-IMPLEMENT_PROMPT="Implement the following feature in the API of Life codebase:
+IMPLEMENT_PROMPT="Implement the following feature:
 
 $(cat "$SUGGESTION_FILE")
 
 IMPORTANT CONSTRAINTS (budget-conscious):
 - Keep changes MINIMAL - aim for under 50 lines changed
-- Only modify $SRC_DIR/main.py and $SRC_DIR/tests/test_main.py
+- ONLY modify main.py and tests/test_main.py in the current directory
 - Do NOT create new files
 - Do NOT install new dependencies
+- Do NOT navigate to parent directories or other folders
 - Add 1-3 tests maximum
 - If the feature seems too complex, implement a simpler version
 
@@ -111,7 +114,8 @@ Guidelines:
 
 Implement this feature now. Be concise."
 
-if ! timeout ${TIMEOUT_IMPLEMENT}s claude --print --max-turns $MAX_TURNS_IMPLEMENT "$IMPLEMENT_PROMPT" --allowedTools Edit,Write,Read,Glob,Grep >> "$LOG_FILE" 2>&1; then
+# Still in src/ directory - Claude can only see/edit files here
+if ! timeout ${TIMEOUT_IMPLEMENT}s claude --print --max-turns $MAX_TURNS_IMPLEMENT "$IMPLEMENT_PROMPT" --allowedTools Edit,Read,Grep >> "$LOG_FILE" 2>&1; then
     log "ERROR: Failed to implement feature (timeout or error)"
     # Revert any partial changes
     cd "$PROJECT_DIR"
