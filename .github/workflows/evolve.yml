@@ -5,12 +5,20 @@ on:
     # Run daily at 2:00 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
-    # Allow manual trigger from GitHub UI
+    inputs:
+      test_mode:
+        description: 'Test mode - skip Claude API calls, just test git flow'
+        required: false
+        default: 'false'
+        type: boolean
 
 # Ensure only one evolution runs at a time
 concurrency:
   group: evolution
   cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
   evolve:
@@ -21,9 +29,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Need full history for commits
           fetch-depth: 0
-          # Use a token that can push
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -38,11 +44,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Python dependencies
-        run: pip install -r src/requirements.txt
+      - name: Install dependencies
+        run: |
+          pip install -r src/requirements.txt
+          npm install -g @anthropic-ai/claude-code
 
-      - name: Install Claude Code CLI
-        run: npm install -g @anthropic-ai/claude-code
+      - name: Verify Claude CLI
+        run: |
+          which claude || echo "claude not found in PATH"
+          claude --version || echo "claude --version failed"
 
       - name: Configure Git
         run: |
@@ -58,11 +68,12 @@ jobs:
 
       - name: Phase 1 - Review and suggest feature
         id: review
+        if: ${{ inputs.test_mode != true }}
         working-directory: src
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          cat > /tmp/review_prompt.txt << 'PROMPT'
+          cat << 'EOF' | timeout 120 claude --print --dangerously-skip-permissions -p - | tee /tmp/suggestion.txt
           You are reviewing a FastAPI codebase to suggest ONE new feature to implement.
 
           IMPORTANT CONSTRAINTS (budget-conscious):
@@ -85,31 +96,24 @@ jobs:
           FEATURE: [Short feature name - max 5 words]
           DESCRIPTION: [1-2 sentences only]
           IMPLEMENTATION: [Brief bullet points of what to change]
-          PROMPT
-
-          timeout 120 claude --print \
-            --max-budget-usd 0.25 \
-            --dangerously-skip-permissions \
-            "$(cat /tmp/review_prompt.txt)" > /tmp/suggestion.txt 2>&1
-
-          cat /tmp/suggestion.txt
+          EOF
 
           # Extract feature name
           FEATURE_NAME=$(grep -m1 "FEATURE:" /tmp/suggestion.txt | sed 's/.*FEATURE:\*\* *//' | sed 's/\*//g' | xargs || echo "New feature")
           echo "feature_name=${FEATURE_NAME}" >> $GITHUB_OUTPUT
 
       - name: Phase 2 - Implement feature
+        if: ${{ inputs.test_mode != true }}
         working-directory: src
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          SUGGESTION=$(cat /tmp/suggestion.txt)
-
-          cat > /tmp/implement_prompt.txt << PROMPT
-          Implement the following feature:
-
-          ${SUGGESTION}
-
+          {
+            echo "Implement the following feature:"
+            echo ""
+            cat /tmp/suggestion.txt
+            echo ""
+            cat << 'EOF'
           IMPORTANT CONSTRAINTS (budget-conscious):
           - Keep changes MINIMAL - aim for under 50 lines changed
           - ONLY modify main.py and tests/test_main.py in the current directory
@@ -125,16 +129,19 @@ jobs:
           - Keep changes focused on the suggested feature only
 
           Implement this feature now. Be concise.
-          PROMPT
+          EOF
+          } | timeout 300 claude --print --dangerously-skip-permissions --allowedTools "Edit,Read,Grep" -p -
 
-          timeout 300 claude --print \
-            --max-budget-usd 0.50 \
-            --dangerously-skip-permissions \
-            --allowedTools Edit,Read,Grep \
-            "$(cat /tmp/implement_prompt.txt)"
+      - name: Test mode - Make dummy change
+        id: test_review
+        if: ${{ inputs.test_mode == true }}
+        run: |
+          echo "# Test run at $(date)" >> evolution/history.md
+          echo "feature_name=Test commit flow" >> $GITHUB_OUTPUT
 
       - name: Phase 3 - Run tests
         id: test
+        if: ${{ inputs.test_mode != true }}
         working-directory: src
         run: |
           if python -m pytest tests/ -v; then
@@ -148,8 +155,9 @@ jobs:
 
       - name: Phase 4 - Commit changes
         id: commit
+        env:
+          FEATURE_NAME: ${{ inputs.test_mode == true && steps.test_review.outputs.feature_name || steps.review.outputs.feature_name }}
         run: |
-          # Check if there are changes
           if git diff --quiet && git diff --cached --quiet; then
             echo "No changes to commit"
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -158,36 +166,42 @@ jobs:
 
           echo "has_changes=true" >> $GITHUB_OUTPUT
 
-          # Stage all changes in src/
-          git add src/
+          if [ "${{ inputs.test_mode }}" == "true" ]; then
+            git add evolution/
+          else
+            git add src/
+          fi
 
-          # Create commit
-          git commit -m "feat: ${{ steps.review.outputs.feature_name }}
+          git commit -m "feat: ${FEATURE_NAME}
 
           Auto-evolved on ${{ steps.setup.outputs.date }} at ${{ steps.setup.outputs.time }}
 
-          Triggered by: GitHub Actions (workflow_dispatch or schedule)"
+          Triggered by: GitHub Actions"
 
       - name: Phase 5 - Update history
-        if: steps.commit.outputs.has_changes == 'true'
+        if: ${{ steps.commit.outputs.has_changes == 'true' && inputs.test_mode != true }}
+        env:
+          FEATURE_NAME: ${{ steps.review.outputs.feature_name }}
+          DATE: ${{ steps.setup.outputs.date }}
+          TIME: ${{ steps.setup.outputs.time }}
         run: |
           CHANGED_FILES=$(git diff --name-only HEAD~1 2>/dev/null || echo "Unknown")
 
-          cat >> evolution/history.md << EOF
-
-          ## ${{ steps.setup.outputs.date }} - ${{ steps.review.outputs.feature_name }}
-
-          **Time:** ${{ steps.setup.outputs.time }}
-
-          **Trigger:** GitHub Actions
-
-          **Files Changed:**
-          \`\`\`
-          ${CHANGED_FILES}
-          \`\`\`
-
-          ---
-          EOF
+          {
+            echo ""
+            echo "## ${DATE} - ${FEATURE_NAME}"
+            echo ""
+            echo "**Time:** ${TIME}"
+            echo ""
+            echo "**Trigger:** GitHub Actions"
+            echo ""
+            echo "**Files Changed:**"
+            echo "\`\`\`"
+            echo "${CHANGED_FILES}"
+            echo "\`\`\`"
+            echo ""
+            echo "---"
+          } >> evolution/history.md
 
           git add evolution/history.md
           git commit --amend --no-edit
@@ -197,11 +211,17 @@ jobs:
         run: git push
 
       - name: Summary
+        env:
+          FEATURE_NAME: ${{ inputs.test_mode == true && steps.test_review.outputs.feature_name || steps.review.outputs.feature_name }}
         run: |
-          if [ "${{ steps.commit.outputs.has_changes }}" == "true" ]; then
+          if [ "${{ inputs.test_mode }}" == "true" ]; then
+            echo "## Test Mode - Git Flow Verified!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Push permissions working correctly." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.commit.outputs.has_changes }}" == "true" ]; then
             echo "## Evolution Successful!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Feature:** ${{ steps.review.outputs.feature_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Feature:** ${FEATURE_NAME}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Date:** ${{ steps.setup.outputs.date }} ${{ steps.setup.outputs.time }}" >> $GITHUB_STEP_SUMMARY
           else

@@ -38,9 +38,13 @@ def health_check():
 
 
 @app.get("/items", response_model=list[Item])
-def list_items():
-    """List all items in the store."""
-    return list(items_db.values())
+def list_items(search: Optional[str] = None):
+    """List all items in the store. Optionally filter by name."""
+    items = list(items_db.values())
+    if search:
+        search_lower = search.lower()
+        items = [item for item in items if search_lower in item["name"].lower()]
+    return items
 
 
 @app.post("/items", response_model=Item, status_code=201)
