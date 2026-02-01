@@ -12,6 +12,9 @@ concurrency:
   group: evolution
   cancel-in-progress: false
 
+permissions:
+  contents: write
+
 jobs:
   evolve:
     runs-on: ubuntu-latest
