@@ -119,3 +119,38 @@ def test_items_count_with_data(client):
     response = client.get("/items/count")
     assert response.status_code == 200
     assert response.json() == {"count": 3}
+
+
+def test_search_items(client):
+    """Test searching items by name."""
+    client.post("/items", json={"name": "Apple Pie"})
+    client.post("/items", json={"name": "Banana Bread"})
+    client.post("/items", json={"name": "Apple Juice"})
+
+    response = client.get("/items?search=apple")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert all("apple" in item["name"].lower() for item in items)
+
+
+def test_search_items_case_insensitive(client):
+    """Test that search is case-insensitive."""
+    client.post("/items", json={"name": "Test Item"})
+    client.post("/items", json={"name": "Another Thing"})
+
+    response = client.get("/items?search=TEST")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 1
+    assert items[0]["name"] == "Test Item"
+
+
+def test_search_items_no_match(client):
+    """Test searching with no matches."""
+    client.post("/items", json={"name": "Foo"})
+    client.post("/items", json={"name": "Bar"})
+
+    response = client.get("/items?search=baz")
+    assert response.status_code == 200
+    assert response.json() == []
