@@ -218,6 +218,10 @@ $CHANGED_FILES
 ---
 EOF
 
+# Amend commit to include history update
+git add "$HISTORY_FILE"
+git commit --amend --no-edit
+
 log "Evolution cycle complete!"
 log "Feature: $FEATURE_NAME"
 log "Log file: $LOG_FILE"
