@@ -26,11 +26,36 @@ TIME=$(date +%H:%M:%S)
 LOG_FILE="$LOGS_DIR/$DATE.log"
 TEMP_DIR=$(mktemp -d)
 
-# Rate limiting configuration
-MAX_TURNS_REVIEW=5          # Max agentic turns for review phase
-MAX_TURNS_IMPLEMENT=15      # Max agentic turns for implementation phase
+# Rate limiting configuration (cost-based)
+MAX_BUDGET_REVIEW=0.25      # Max dollars for review phase
+MAX_BUDGET_IMPLEMENT=0.50   # Max dollars for implementation phase
 TIMEOUT_REVIEW=120          # Max seconds for review phase (2 min)
 TIMEOUT_IMPLEMENT=300       # Max seconds for implementation phase (5 min)
+
+# Portable timeout function (works on macOS without coreutils)
+run_with_timeout() {
+    local timeout=$1
+    shift
+
+    # Run command in background
+    "$@" &
+    local pid=$!
+
+    # Wait for completion or timeout
+    local count=0
+    while kill -0 $pid 2>/dev/null; do
+        if [ $count -ge $timeout ]; then
+            kill -9 $pid 2>/dev/null
+            wait $pid 2>/dev/null
+            return 124  # timeout exit code
+        fi
+        sleep 1
+        ((count++))
+    done
+
+    wait $pid
+    return $?
+}
 
 # Cleanup temp directory on exit
 trap "rm -rf $TEMP_DIR" EXIT
@@ -47,7 +72,7 @@ echo "Evolution Run: $DATE $TIME" >> "$LOG_FILE"
 echo "========================================" >> "$LOG_FILE"
 
 log "Starting evolution cycle..."
-log "Rate limits: review=${MAX_TURNS_REVIEW} turns/${TIMEOUT_REVIEW}s, implement=${MAX_TURNS_IMPLEMENT} turns/${TIMEOUT_IMPLEMENT}s"
+log "Rate limits: review=\$${MAX_BUDGET_REVIEW}/${TIMEOUT_REVIEW}s, implement=\$${MAX_BUDGET_IMPLEMENT}/${TIMEOUT_IMPLEMENT}s"
 
 # Step 1: Review Phase - Suggest a feature
 log "Phase 1: Reviewing codebase and generating feature suggestion..."
@@ -79,8 +104,8 @@ IMPLEMENTATION: [Brief bullet points of what to change]"
 cd "$SRC_DIR"
 SUGGESTION_FILE="$TEMP_DIR/suggestion.txt"
 
-if ! timeout ${TIMEOUT_REVIEW}s claude --print --max-turns $MAX_TURNS_REVIEW "$REVIEW_PROMPT" > "$SUGGESTION_FILE" 2>> "$LOG_FILE"; then
-    log "ERROR: Failed to generate feature suggestion (timeout or error)"
+if ! run_with_timeout $TIMEOUT_REVIEW claude --print --max-budget-usd $MAX_BUDGET_REVIEW "$REVIEW_PROMPT" > "$SUGGESTION_FILE" 2>> "$LOG_FILE"; then
+    log "ERROR: Failed to generate feature suggestion (timeout or budget exceeded)"
     exit 1
 fi
 
@@ -115,8 +140,8 @@ Guidelines:
 Implement this feature now. Be concise."
 
 # Still in src/ directory - Claude can only see/edit files here
-if ! timeout ${TIMEOUT_IMPLEMENT}s claude --print --max-turns $MAX_TURNS_IMPLEMENT "$IMPLEMENT_PROMPT" --allowedTools Edit,Read,Grep >> "$LOG_FILE" 2>&1; then
-    log "ERROR: Failed to implement feature (timeout or error)"
+if ! run_with_timeout $TIMEOUT_IMPLEMENT claude --print --max-budget-usd $MAX_BUDGET_IMPLEMENT "$IMPLEMENT_PROMPT" --allowedTools Edit,Read,Grep >> "$LOG_FILE" 2>&1; then
+    log "ERROR: Failed to implement feature (timeout or budget exceeded)"
     # Revert any partial changes
     cd "$PROJECT_DIR"
     git checkout -- . 2>/dev/null || true
