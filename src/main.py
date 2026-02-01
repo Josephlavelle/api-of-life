@@ -58,3 +58,11 @@ def get_item(item_id: str):
     if item_id not in items_db:
         raise HTTPException(status_code=404, detail="Item not found")
     return items_db[item_id]
+
+
+@app.delete("/items/{item_id}", status_code=204)
+def delete_item(item_id: str):
+    """Delete an item by ID."""
+    if item_id not in items_db:
+        raise HTTPException(status_code=404, detail="Item not found")
+    del items_db[item_id]

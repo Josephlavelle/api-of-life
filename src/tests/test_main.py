@@ -83,3 +83,21 @@ def test_list_items_with_data(client):
     assert response.status_code == 200
     items = response.json()
     assert len(items) == 2
+
+
+def test_delete_item(client):
+    """Test deleting an item."""
+    create_response = client.post("/items", json={"name": "Delete Me"})
+    item_id = create_response.json()["id"]
+
+    response = client.delete(f"/items/{item_id}")
+    assert response.status_code == 204
+
+    get_response = client.get(f"/items/{item_id}")
+    assert get_response.status_code == 404
+
+
+def test_delete_item_not_found(client):
+    """Test deleting a non-existent item."""
+    response = client.delete("/items/nonexistent-id")
+    assert response.status_code == 404
