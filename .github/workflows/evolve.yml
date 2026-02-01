@@ -64,7 +64,8 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          REVIEW_PROMPT="You are reviewing a FastAPI codebase to suggest ONE new feature to implement.
+          cat << 'EOF' | timeout 120 claude --print --dangerously-skip-permissions -p - | tee /tmp/suggestion.txt
+          You are reviewing a FastAPI codebase to suggest ONE new feature to implement.
 
           IMPORTANT CONSTRAINTS (budget-conscious):
           - Suggest a SMALL, SIMPLE feature (max 50 lines of code changes)
@@ -85,10 +86,8 @@ jobs:
           Format your response as:
           FEATURE: [Short feature name - max 5 words]
           DESCRIPTION: [1-2 sentences only]
-          IMPLEMENTATION: [Brief bullet points of what to change]"
-
-          # Run claude with timeout, capture output
-          timeout 120 claude --print --dangerously-skip-permissions "$REVIEW_PROMPT" | tee /tmp/suggestion.txt
+          IMPLEMENTATION: [Brief bullet points of what to change]
+          EOF
 
           # Extract feature name
           FEATURE_NAME=$(grep -m1 "FEATURE:" /tmp/suggestion.txt | sed 's/.*FEATURE:\*\* *//' | sed 's/\*//g' | xargs || echo "New feature")
@@ -99,12 +98,12 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          SUGGESTION=$(cat /tmp/suggestion.txt)
-
-          IMPLEMENT_PROMPT="Implement the following feature:
-
-          ${SUGGESTION}
-
+          {
+            echo "Implement the following feature:"
+            echo ""
+            cat /tmp/suggestion.txt
+            echo ""
+            cat << 'EOF'
           IMPORTANT CONSTRAINTS (budget-conscious):
           - Keep changes MINIMAL - aim for under 50 lines changed
           - ONLY modify main.py and tests/test_main.py in the current directory
@@ -119,9 +118,9 @@ jobs:
           - Ensure backward compatibility with existing endpoints
           - Keep changes focused on the suggested feature only
 
-          Implement this feature now. Be concise."
-
-          timeout 300 claude --print --dangerously-skip-permissions --allowedTools "Edit,Read,Grep" "$IMPLEMENT_PROMPT"
+          Implement this feature now. Be concise.
+          EOF
+          } | timeout 300 claude --print --dangerously-skip-permissions --allowedTools "Edit,Read,Grep" -p -
 
       - name: Phase 3 - Run tests
         id: test
