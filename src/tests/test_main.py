@@ -101,3 +101,21 @@ def test_delete_item_not_found(client):
     """Test deleting a non-existent item."""
     response = client.delete("/items/nonexistent-id")
     assert response.status_code == 404
+
+
+def test_items_count_empty(client):
+    """Test item count when store is empty."""
+    response = client.get("/items/count")
+    assert response.status_code == 200
+    assert response.json() == {"count": 0}
+
+
+def test_items_count_with_data(client):
+    """Test item count after creating items."""
+    client.post("/items", json={"name": "Item 1"})
+    client.post("/items", json={"name": "Item 2"})
+    client.post("/items", json={"name": "Item 3"})
+
+    response = client.get("/items/count")
+    assert response.status_code == 200
+    assert response.json() == {"count": 3}

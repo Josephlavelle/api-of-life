@@ -52,6 +52,12 @@ def create_item(item: ItemCreate):
     return new_item
 
 
+@app.get("/items/count")
+def get_items_count():
+    """Get the total number of items in the store."""
+    return {"count": len(items_db)}
+
+
 @app.get("/items/{item_id}", response_model=Item)
 def get_item(item_id: str):
     """Get a single item by ID."""
