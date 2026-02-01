@@ -114,7 +114,9 @@ cat "$SUGGESTION_FILE" >> "$LOG_FILE"
 cat "$SUGGESTION_FILE"
 
 # Extract feature name for commit message
-FEATURE_NAME=$(grep -m1 "^FEATURE:" "$SUGGESTION_FILE" | sed 's/FEATURE: *//' || echo "New feature")
+# Extract feature name (handles both plain "FEATURE:" and markdown "**FEATURE:**")
+FEATURE_NAME=$(grep -m1 "FEATURE:" "$SUGGESTION_FILE" | sed 's/.*FEATURE:\*\* *//' | sed 's/\*//g' | xargs)
+[ -z "$FEATURE_NAME" ] && FEATURE_NAME="New feature"
 
 # Step 2: Implementation Phase
 log "Phase 2: Implementing feature: $FEATURE_NAME"
