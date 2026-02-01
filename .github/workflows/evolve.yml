@@ -5,7 +5,12 @@ on:
     # Run daily at 2:00 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
-    # Allow manual trigger from GitHub UI
+    inputs:
+      test_mode:
+        description: 'Test mode - skip Claude API calls, just test git flow'
+        required: false
+        default: 'false'
+        type: boolean
 
 # Ensure only one evolution runs at a time
 concurrency:
@@ -63,6 +68,7 @@ jobs:
 
       - name: Phase 1 - Review and suggest feature
         id: review
+        if: ${{ inputs.test_mode != true }}
         working-directory: src
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -97,6 +103,7 @@ jobs:
           echo "feature_name=${FEATURE_NAME}" >> $GITHUB_OUTPUT
 
       - name: Phase 2 - Implement feature
+        if: ${{ inputs.test_mode != true }}
         working-directory: src
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -125,8 +132,16 @@ jobs:
           EOF
           } | timeout 300 claude --print --dangerously-skip-permissions --allowedTools "Edit,Read,Grep" -p -
 
+      - name: Test mode - Make dummy change
+        id: test_review
+        if: ${{ inputs.test_mode == true }}
+        run: |
+          echo "# Test run at $(date)" >> evolution/history.md
+          echo "feature_name=Test commit flow" >> $GITHUB_OUTPUT
+
       - name: Phase 3 - Run tests
         id: test
+        if: ${{ inputs.test_mode != true }}
         working-directory: src
         run: |
           if python -m pytest tests/ -v; then
@@ -140,6 +155,8 @@ jobs:
 
       - name: Phase 4 - Commit changes
         id: commit
+        env:
+          FEATURE_NAME: ${{ inputs.test_mode == true && steps.test_review.outputs.feature_name || steps.review.outputs.feature_name }}
         run: |
           if git diff --quiet && git diff --cached --quiet; then
             echo "No changes to commit"
@@ -148,15 +165,21 @@ jobs:
           fi
 
           echo "has_changes=true" >> $GITHUB_OUTPUT
-          git add src/
-          git commit -m "feat: ${{ steps.review.outputs.feature_name }}
+
+          if [ "${{ inputs.test_mode }}" == "true" ]; then
+            git add evolution/
+          else
+            git add src/
+          fi
+
+          git commit -m "feat: ${FEATURE_NAME}
 
           Auto-evolved on ${{ steps.setup.outputs.date }} at ${{ steps.setup.outputs.time }}
 
           Triggered by: GitHub Actions"
 
       - name: Phase 5 - Update history
-        if: steps.commit.outputs.has_changes == 'true'
+        if: ${{ steps.commit.outputs.has_changes == 'true' && inputs.test_mode != true }}
         env:
           FEATURE_NAME: ${{ steps.review.outputs.feature_name }}
           DATE: ${{ steps.setup.outputs.date }}
@@ -188,11 +211,17 @@ jobs:
         run: git push
 
       - name: Summary
+        env:
+          FEATURE_NAME: ${{ inputs.test_mode == true && steps.test_review.outputs.feature_name || steps.review.outputs.feature_name }}
         run: |
-          if [ "${{ steps.commit.outputs.has_changes }}" == "true" ]; then
+          if [ "${{ inputs.test_mode }}" == "true" ]; then
+            echo "## Test Mode - Git Flow Verified!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Push permissions working correctly." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.commit.outputs.has_changes }}" == "true" ]; then
             echo "## Evolution Successful!" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Feature:** ${{ steps.review.outputs.feature_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Feature:** ${FEATURE_NAME}" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Date:** ${{ steps.setup.outputs.date }} ${{ steps.setup.outputs.time }}" >> $GITHUB_STEP_SUMMARY
           else
