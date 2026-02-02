@@ -154,3 +154,29 @@ def test_search_items_no_match(client):
     response = client.get("/items?search=baz")
     assert response.status_code == 200
     assert response.json() == []
+
+
+def test_list_items_with_limit(client):
+    """Test limiting the number of items returned."""
+    client.post("/items", json={"name": "Item 1"})
+    client.post("/items", json={"name": "Item 2"})
+    client.post("/items", json={"name": "Item 3"})
+    client.post("/items", json={"name": "Item 4"})
+
+    response = client.get("/items?limit=2")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+
+
+def test_list_items_limit_with_search(client):
+    """Test limit works with search parameter."""
+    client.post("/items", json={"name": "Apple Pie"})
+    client.post("/items", json={"name": "Apple Juice"})
+    client.post("/items", json={"name": "Apple Tart"})
+
+    response = client.get("/items?search=apple&limit=2")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert all("apple" in item["name"].lower() for item in items)
