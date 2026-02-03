@@ -1,6 +1,7 @@
 """Tests for the API of Life."""
 
 import pytest
+from datetime import datetime
 from fastapi.testclient import TestClient
 from main import app, items_db
 
@@ -180,3 +181,15 @@ def test_list_items_limit_with_search(client):
     items = response.json()
     assert len(items) == 2
     assert all("apple" in item["name"].lower() for item in items)
+
+
+def test_item_has_created_timestamp(client):
+    """Test that created items have a created_at timestamp."""
+    response = client.post("/items", json={"name": "Timestamped Item"})
+    assert response.status_code == 201
+    data = response.json()
+    assert "created_at" in data
+
+    # Verify it's a valid ISO format timestamp
+    created_at = datetime.fromisoformat(data["created_at"])
+    assert isinstance(created_at, datetime)

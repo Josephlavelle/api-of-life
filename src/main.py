@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 from uuid import uuid4
+from datetime import datetime
 
 app = FastAPI(
     title="API of Life",
@@ -29,6 +30,7 @@ class Item(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
+    created_at: str
 
 
 @app.get("/health")
@@ -53,7 +55,12 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None):
 def create_item(item: ItemCreate):
     """Create a new item."""
     item_id = str(uuid4())
-    new_item = {"id": item_id, "name": item.name, "description": item.description}
+    new_item = {
+        "id": item_id,
+        "name": item.name,
+        "description": item.description,
+        "created_at": datetime.now().isoformat()
+    }
     items_db[item_id] = new_item
     return new_item
 
