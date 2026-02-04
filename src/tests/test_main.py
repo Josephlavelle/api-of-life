@@ -193,3 +193,45 @@ def test_item_has_created_timestamp(client):
     # Verify it's a valid ISO format timestamp
     created_at = datetime.fromisoformat(data["created_at"])
     assert isinstance(created_at, datetime)
+
+
+def test_sort_items_ascending(client):
+    """Test sorting items by creation date in ascending order."""
+    client.post("/items", json={"name": "First"})
+    client.post("/items", json={"name": "Second"})
+    client.post("/items", json={"name": "Third"})
+
+    response = client.get("/items?sort=asc")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
+    assert items[0]["name"] == "First"
+    assert items[2]["name"] == "Third"
+
+
+def test_sort_items_descending(client):
+    """Test sorting items by creation date in descending order."""
+    client.post("/items", json={"name": "First"})
+    client.post("/items", json={"name": "Second"})
+    client.post("/items", json={"name": "Third"})
+
+    response = client.get("/items?sort=desc")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
+    assert items[0]["name"] == "Third"
+    assert items[2]["name"] == "First"
+
+
+def test_sort_with_limit(client):
+    """Test sorting works with limit parameter."""
+    client.post("/items", json={"name": "First"})
+    client.post("/items", json={"name": "Second"})
+    client.post("/items", json={"name": "Third"})
+
+    response = client.get("/items?sort=desc&limit=2")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert items[0]["name"] == "Third"
+    assert items[1]["name"] == "Second"
