@@ -235,3 +235,34 @@ def test_sort_with_limit(client):
     assert len(items) == 2
     assert items[0]["name"] == "Third"
     assert items[1]["name"] == "Second"
+
+
+def test_update_item(client):
+    """Test updating an item."""
+    create_response = client.post("/items", json={"name": "Old Name", "description": "Old Desc"})
+    item_id = create_response.json()["id"]
+
+    response = client.put(f"/items/{item_id}", json={"name": "New Name", "description": "New Desc"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "New Name"
+    assert data["description"] == "New Desc"
+    assert data["id"] == item_id
+
+
+def test_update_item_not_found(client):
+    """Test updating a non-existent item."""
+    response = client.put("/items/nonexistent-id", json={"name": "New Name"})
+    assert response.status_code == 404
+
+
+def test_update_item_partial(client):
+    """Test updating an item with partial fields."""
+    create_response = client.post("/items", json={"name": "Original", "description": "Desc"})
+    item_id = create_response.json()["id"]
+
+    response = client.put(f"/items/{item_id}", json={"name": "Updated"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Updated"
+    assert data["description"] is None

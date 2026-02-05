@@ -81,6 +81,16 @@ def get_item(item_id: str):
     return items_db[item_id]
 
 
+@app.put("/items/{item_id}", response_model=Item)
+def update_item(item_id: str, item: ItemCreate):
+    """Update an item by ID."""
+    if item_id not in items_db:
+        raise HTTPException(status_code=404, detail="Item not found")
+    items_db[item_id]["name"] = item.name
+    items_db[item_id]["description"] = item.description
+    return items_db[item_id]
+
+
 @app.delete("/items/{item_id}", status_code=204)
 def delete_item(item_id: str):
     """Delete an item by ID."""
