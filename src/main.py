@@ -31,6 +31,7 @@ class Item(BaseModel):
     name: str
     description: Optional[str] = None
     created_at: str
+    updated_at: str
 
 
 @app.get("/health")
@@ -57,11 +58,13 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
 def create_item(item: ItemCreate):
     """Create a new item."""
     item_id = str(uuid4())
+    now = datetime.now().isoformat()
     new_item = {
         "id": item_id,
         "name": item.name,
         "description": item.description,
-        "created_at": datetime.now().isoformat()
+        "created_at": now,
+        "updated_at": now
     }
     items_db[item_id] = new_item
     return new_item
@@ -88,6 +91,7 @@ def update_item(item_id: str, item: ItemCreate):
         raise HTTPException(status_code=404, detail="Item not found")
     items_db[item_id]["name"] = item.name
     items_db[item_id]["description"] = item.description
+    items_db[item_id]["updated_at"] = datetime.now().isoformat()
     return items_db[item_id]
 
 

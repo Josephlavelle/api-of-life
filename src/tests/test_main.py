@@ -266,3 +266,28 @@ def test_update_item_partial(client):
     data = response.json()
     assert data["name"] == "Updated"
     assert data["description"] is None
+
+
+def test_item_has_updated_at_timestamp(client):
+    """Test that created items have an updated_at timestamp."""
+    response = client.post("/items", json={"name": "Test Item"})
+    assert response.status_code == 201
+    data = response.json()
+    assert "updated_at" in data
+    assert data["created_at"] == data["updated_at"]  # Should be same on creation
+
+
+def test_update_item_changes_updated_at(client):
+    """Test that updating an item changes the updated_at timestamp."""
+    import time
+
+    create_response = client.post("/items", json={"name": "Original"})
+    item_id = create_response.json()["id"]
+    original_updated_at = create_response.json()["updated_at"]
+
+    time.sleep(0.01)  # Small delay to ensure different timestamp
+
+    update_response = client.put(f"/items/{item_id}", json={"name": "Updated"})
+    data = update_response.json()
+    assert data["updated_at"] != original_updated_at
+    assert data["created_at"] != data["updated_at"]  # Should be different after update
