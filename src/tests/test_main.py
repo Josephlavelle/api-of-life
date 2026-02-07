@@ -157,6 +157,34 @@ def test_search_items_no_match(client):
     assert response.json() == []
 
 
+def test_search_items_by_description(client):
+    """Test searching items by description."""
+    client.post("/items", json={"name": "Apple", "description": "A delicious red fruit"})
+    client.post("/items", json={"name": "Carrot", "description": "An orange vegetable"})
+    client.post("/items", json={"name": "Banana", "description": "A yellow fruit"})
+
+    response = client.get("/items?search=fruit")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert all("fruit" in item["description"].lower() for item in items)
+
+
+def test_search_items_by_name_or_description(client):
+    """Test searching items matches both name and description."""
+    client.post("/items", json={"name": "Orange Juice", "description": "Made from oranges"})
+    client.post("/items", json={"name": "Apple", "description": "Contains orange vitamin C"})
+    client.post("/items", json={"name": "Grape", "description": "Purple fruit"})
+
+    response = client.get("/items?search=orange")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    names = [item["name"] for item in items]
+    assert "Orange Juice" in names
+    assert "Apple" in names
+
+
 def test_list_items_with_limit(client):
     """Test limiting the number of items returned."""
     client.post("/items", json={"name": "Item 1"})

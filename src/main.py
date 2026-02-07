@@ -42,11 +42,12 @@ def health_check():
 
 @app.get("/items", response_model=list[Item])
 def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None):
-    """List all items in the store. Optionally filter by name, sort by creation date, and limit results."""
+    """List all items in the store. Optionally filter by name or description, sort by creation date, and limit results."""
     items = list(items_db.values())
     if search:
         search_lower = search.lower()
-        items = [item for item in items if search_lower in item["name"].lower()]
+        items = [item for item in items if search_lower in item["name"].lower() or
+                 (item["description"] and search_lower in item["description"].lower())]
     if sort in ["asc", "desc"]:
         items = sorted(items, key=lambda x: x["created_at"], reverse=(sort == "desc"))
     if limit is not None:
