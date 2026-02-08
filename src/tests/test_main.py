@@ -319,3 +319,24 @@ def test_update_item_changes_updated_at(client):
     data = update_response.json()
     assert data["updated_at"] != original_updated_at
     assert data["created_at"] != data["updated_at"]  # Should be different after update
+
+
+def test_delete_all_items_empty(client):
+    """Test bulk delete on empty store."""
+    response = client.delete("/items")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 0}
+
+
+def test_delete_all_items_with_data(client):
+    """Test bulk delete removes all items."""
+    client.post("/items", json={"name": "Item 1"})
+    client.post("/items", json={"name": "Item 2"})
+    client.post("/items", json={"name": "Item 3"})
+
+    response = client.delete("/items")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 3}
+
+    list_response = client.get("/items")
+    assert list_response.json() == []

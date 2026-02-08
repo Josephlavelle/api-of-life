@@ -77,6 +77,14 @@ def get_items_count():
     return {"count": len(items_db)}
 
 
+@app.delete("/items")
+def delete_all_items():
+    """Delete all items from the store."""
+    count = len(items_db)
+    items_db.clear()
+    return {"deleted": count}
+
+
 @app.get("/items/{item_id}", response_model=Item)
 def get_item(item_id: str):
     """Get a single item by ID."""
