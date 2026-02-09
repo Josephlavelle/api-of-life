@@ -340,3 +340,80 @@ def test_delete_all_items_with_data(client):
 
     list_response = client.get("/items")
     assert list_response.json() == []
+
+
+def test_filter_by_created_after(client):
+    """Test filtering items by created_after date."""
+    import time
+
+    response1 = client.post("/items", json={"name": "Item 1"})
+    item1_created = response1.json()["created_at"]
+
+    time.sleep(0.01)
+
+    response2 = client.post("/items", json={"name": "Item 2"})
+    item2_created = response2.json()["created_at"]
+
+    time.sleep(0.01)
+
+    client.post("/items", json={"name": "Item 3"})
+
+    # Filter items created after item1
+    response = client.get(f"/items?created_after={item2_created}")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert all(item["created_at"] >= item2_created for item in items)
+
+
+def test_filter_by_created_before(client):
+    """Test filtering items by created_before date."""
+    import time
+
+    client.post("/items", json={"name": "Item 1"})
+
+    time.sleep(0.01)
+
+    response2 = client.post("/items", json={"name": "Item 2"})
+    item2_created = response2.json()["created_at"]
+
+    time.sleep(0.01)
+
+    client.post("/items", json={"name": "Item 3"})
+
+    # Filter items created before item3
+    response = client.get(f"/items?created_before={item2_created}")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert all(item["created_at"] <= item2_created for item in items)
+
+
+def test_filter_by_date_range(client):
+    """Test filtering items by date range (created_after and created_before)."""
+    import time
+
+    client.post("/items", json={"name": "Item 1"})
+
+    time.sleep(0.01)
+
+    response2 = client.post("/items", json={"name": "Item 2"})
+    item2_created = response2.json()["created_at"]
+
+    time.sleep(0.01)
+
+    response3 = client.post("/items", json={"name": "Item 3"})
+    item3_created = response3.json()["created_at"]
+
+    time.sleep(0.01)
+
+    client.post("/items", json={"name": "Item 4"})
+
+    # Filter items in the middle range
+    response = client.get(f"/items?created_after={item2_created}&created_before={item3_created}")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    names = [item["name"] for item in items]
+    assert "Item 2" in names
+    assert "Item 3" in names
