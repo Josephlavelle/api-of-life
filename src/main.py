@@ -24,12 +24,14 @@ items_db: dict[str, dict] = {}
 class ItemCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    tags: Optional[list[str]] = None
 
 
 class Item(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
+    tags: Optional[list[str]] = None
     created_at: str
     updated_at: str
 
@@ -41,7 +43,7 @@ def health_check():
 
 
 @app.get("/items", response_model=list[Item])
-def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None):
+def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None):
     """List all items in the store. Optionally filter by name or description, sort by creation date, and limit results."""
     items = list(items_db.values())
     if search:
@@ -52,6 +54,8 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
         items = [item for item in items if item["created_at"] >= created_after]
     if created_before:
         items = [item for item in items if item["created_at"] <= created_before]
+    if tags:
+        items = [item for item in items if tags in item.get("tags", [])]
     if sort in ["asc", "desc"]:
         items = sorted(items, key=lambda x: x["created_at"], reverse=(sort == "desc"))
     if limit is not None:
@@ -68,6 +72,7 @@ def create_item(item: ItemCreate):
         "id": item_id,
         "name": item.name,
         "description": item.description,
+        "tags": item.tags,
         "created_at": now,
         "updated_at": now
     }
@@ -104,6 +109,7 @@ def update_item(item_id: str, item: ItemCreate):
         raise HTTPException(status_code=404, detail="Item not found")
     items_db[item_id]["name"] = item.name
     items_db[item_id]["description"] = item.description
+    items_db[item_id]["tags"] = item.tags
     items_db[item_id]["updated_at"] = datetime.now().isoformat()
     return items_db[item_id]
 

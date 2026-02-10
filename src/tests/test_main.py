@@ -417,3 +417,37 @@ def test_filter_by_date_range(client):
     names = [item["name"] for item in items]
     assert "Item 2" in names
     assert "Item 3" in names
+
+
+def test_create_item_with_tags(client):
+    """Test creating an item with tags."""
+    response = client.post("/items", json={"name": "Tagged Item", "tags": ["work", "urgent"]})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["tags"] == ["work", "urgent"]
+
+
+def test_filter_items_by_tag(client):
+    """Test filtering items by a specific tag."""
+    client.post("/items", json={"name": "Item 1", "tags": ["work", "urgent"]})
+    client.post("/items", json={"name": "Item 2", "tags": ["personal"]})
+    client.post("/items", json={"name": "Item 3", "tags": ["work"]})
+
+    response = client.get("/items?tags=work")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    names = [item["name"] for item in items]
+    assert "Item 1" in names
+    assert "Item 3" in names
+
+
+def test_update_item_with_tags(client):
+    """Test updating an item's tags."""
+    create_response = client.post("/items", json={"name": "Item", "tags": ["old"]})
+    item_id = create_response.json()["id"]
+
+    response = client.put(f"/items/{item_id}", json={"name": "Item", "tags": ["new", "updated"]})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["tags"] == ["new", "updated"]
