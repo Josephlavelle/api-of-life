@@ -451,3 +451,30 @@ def test_update_item_with_tags(client):
     assert response.status_code == 200
     data = response.json()
     assert data["tags"] == ["new", "updated"]
+
+
+def test_list_items_with_offset(client):
+    """Test using offset to skip items."""
+    client.post("/items", json={"name": "Item 1"})
+    client.post("/items", json={"name": "Item 2"})
+    client.post("/items", json={"name": "Item 3"})
+    client.post("/items", json={"name": "Item 4"})
+
+    response = client.get("/items?offset=2")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+
+
+def test_list_items_with_offset_and_limit(client):
+    """Test offset and limit work together for pagination."""
+    client.post("/items", json={"name": "Item 1"})
+    client.post("/items", json={"name": "Item 2"})
+    client.post("/items", json={"name": "Item 3"})
+    client.post("/items", json={"name": "Item 4"})
+    client.post("/items", json={"name": "Item 5"})
+
+    response = client.get("/items?offset=1&limit=2")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2

@@ -43,8 +43,8 @@ def health_check():
 
 
 @app.get("/items", response_model=list[Item])
-def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None):
-    """List all items in the store. Optionally filter by name or description, sort by creation date, and limit results."""
+def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None, offset: Optional[int] = None):
+    """List all items in the store. Optionally filter by name or description, sort by creation date, paginate with offset and limit results."""
     items = list(items_db.values())
     if search:
         search_lower = search.lower()
@@ -58,6 +58,8 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
         items = [item for item in items if tags in item.get("tags", [])]
     if sort in ["asc", "desc"]:
         items = sorted(items, key=lambda x: x["created_at"], reverse=(sort == "desc"))
+    if offset is not None:
+        items = items[offset:]
     if limit is not None:
         items = items[:limit]
     return items
