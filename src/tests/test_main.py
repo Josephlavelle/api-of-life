@@ -478,3 +478,33 @@ def test_list_items_with_offset_and_limit(client):
     assert response.status_code == 200
     items = response.json()
     assert len(items) == 2
+
+
+def test_sort_items_by_name_ascending(client):
+    """Test sorting items by name in ascending order."""
+    client.post("/items", json={"name": "Zebra"})
+    client.post("/items", json={"name": "Apple"})
+    client.post("/items", json={"name": "Mango"})
+
+    response = client.get("/items?sort=asc&sort_by=name")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
+    assert items[0]["name"] == "Apple"
+    assert items[1]["name"] == "Mango"
+    assert items[2]["name"] == "Zebra"
+
+
+def test_sort_items_by_name_descending(client):
+    """Test sorting items by name in descending order."""
+    client.post("/items", json={"name": "Zebra"})
+    client.post("/items", json={"name": "Apple"})
+    client.post("/items", json={"name": "Mango"})
+
+    response = client.get("/items?sort=desc&sort_by=name")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
+    assert items[0]["name"] == "Zebra"
+    assert items[1]["name"] == "Mango"
+    assert items[2]["name"] == "Apple"
