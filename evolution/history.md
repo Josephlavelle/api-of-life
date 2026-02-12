@@ -217,3 +217,17 @@ src/tests/test_main.py
 ```
 
 ---
+
+## 2026-02-12 - Add active/inactive status toggle
+
+**Time:** 04:13:03
+
+**Trigger:** GitHub Actions
+
+**Files Changed:**
+```
+src/main.py
+src/tests/test_main.py
+```
+
+---

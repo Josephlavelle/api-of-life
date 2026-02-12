@@ -508,3 +508,38 @@ def test_sort_items_by_name_descending(client):
     assert items[0]["name"] == "Zebra"
     assert items[1]["name"] == "Mango"
     assert items[2]["name"] == "Apple"
+
+
+def test_create_item_defaults_to_active(client):
+    """Test that items default to active=True."""
+    response = client.post("/items", json={"name": "Active Item"})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["active"] is True
+
+
+def test_create_inactive_item(client):
+    """Test creating an item with active=False."""
+    response = client.post("/items", json={"name": "Inactive Item", "active": False})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["active"] is False
+
+
+def test_filter_active_items(client):
+    """Test filtering items by active status."""
+    client.post("/items", json={"name": "Active Item", "active": True})
+    client.post("/items", json={"name": "Inactive Item", "active": False})
+    client.post("/items", json={"name": "Also Active"})
+
+    response = client.get("/items?active=true")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert all(item["active"] is True for item in items)
+
+    response = client.get("/items?active=false")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 1
+    assert items[0]["name"] == "Inactive Item"
