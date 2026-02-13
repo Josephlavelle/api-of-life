@@ -231,3 +231,17 @@ src/tests/test_main.py
 ```
 
 ---
+
+## 2026-02-13 - FEATURE: Add priority field to items
+
+**Time:** 04:09:43
+
+**Trigger:** GitHub Actions
+
+**Files Changed:**
+```
+src/main.py
+src/tests/test_main.py
+```
+
+---

@@ -543,3 +543,24 @@ def test_filter_active_items(client):
     items = response.json()
     assert len(items) == 1
     assert items[0]["name"] == "Inactive Item"
+
+
+def test_create_item_with_priority(client):
+    """Test creating an item with priority."""
+    response = client.post("/items", json={"name": "High Priority", "priority": 5})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["priority"] == 5
+
+
+def test_filter_items_by_priority(client):
+    """Test filtering items by priority level."""
+    client.post("/items", json={"name": "Low", "priority": 1})
+    client.post("/items", json={"name": "High", "priority": 5})
+    client.post("/items", json={"name": "Also High", "priority": 5})
+
+    response = client.get("/items?priority=5")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    assert all(item["priority"] == 5 for item in items)

@@ -26,6 +26,7 @@ class ItemCreate(BaseModel):
     description: Optional[str] = None
     tags: Optional[list[str]] = None
     active: Optional[bool] = True
+    priority: Optional[int] = 0
 
 
 class Item(BaseModel):
@@ -34,6 +35,7 @@ class Item(BaseModel):
     description: Optional[str] = None
     tags: Optional[list[str]] = None
     active: bool
+    priority: int
     created_at: str
     updated_at: str
 
@@ -45,7 +47,7 @@ def health_check():
 
 
 @app.get("/items", response_model=list[Item])
-def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, sort_by: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None, offset: Optional[int] = None, active: Optional[bool] = None):
+def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, sort_by: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None, offset: Optional[int] = None, active: Optional[bool] = None, priority: Optional[int] = None):
     """List all items in the store. Optionally filter by name or description, sort by name or creation date, paginate with offset and limit results."""
     items = list(items_db.values())
     if search:
@@ -60,6 +62,8 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
         items = [item for item in items if tags in item.get("tags", [])]
     if active is not None:
         items = [item for item in items if item.get("active") == active]
+    if priority is not None:
+        items = [item for item in items if item.get("priority") == priority]
     if sort in ["asc", "desc"]:
         sort_key = sort_by if sort_by in ["name", "created_at"] else "created_at"
         items = sorted(items, key=lambda x: x[sort_key], reverse=(sort == "desc"))
@@ -81,6 +85,7 @@ def create_item(item: ItemCreate):
         "description": item.description,
         "tags": item.tags,
         "active": item.active if item.active is not None else True,
+        "priority": item.priority if item.priority is not None else 0,
         "created_at": now,
         "updated_at": now
     }
@@ -119,6 +124,7 @@ def update_item(item_id: str, item: ItemCreate):
     items_db[item_id]["description"] = item.description
     items_db[item_id]["tags"] = item.tags
     items_db[item_id]["active"] = item.active if item.active is not None else True
+    items_db[item_id]["priority"] = item.priority if item.priority is not None else 0
     items_db[item_id]["updated_at"] = datetime.now().isoformat()
     return items_db[item_id]
 
