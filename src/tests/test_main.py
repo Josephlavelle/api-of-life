@@ -564,3 +564,33 @@ def test_filter_items_by_priority(client):
     items = response.json()
     assert len(items) == 2
     assert all(item["priority"] == 5 for item in items)
+
+
+def test_sort_items_by_priority_ascending(client):
+    """Test sorting items by priority in ascending order."""
+    client.post("/items", json={"name": "High", "priority": 5})
+    client.post("/items", json={"name": "Low", "priority": 1})
+    client.post("/items", json={"name": "Medium", "priority": 3})
+
+    response = client.get("/items?sort=asc&sort_by=priority")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
+    assert items[0]["priority"] == 1
+    assert items[1]["priority"] == 3
+    assert items[2]["priority"] == 5
+
+
+def test_sort_items_by_priority_descending(client):
+    """Test sorting items by priority in descending order."""
+    client.post("/items", json={"name": "High", "priority": 5})
+    client.post("/items", json={"name": "Low", "priority": 1})
+    client.post("/items", json={"name": "Medium", "priority": 3})
+
+    response = client.get("/items?sort=desc&sort_by=priority")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
+    assert items[0]["priority"] == 5
+    assert items[1]["priority"] == 3
+    assert items[2]["priority"] == 1
