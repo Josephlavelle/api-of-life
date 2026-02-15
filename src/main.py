@@ -24,6 +24,7 @@ items_db: dict[str, dict] = {}
 class ItemCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    notes: Optional[str] = None
     tags: Optional[list[str]] = None
     active: Optional[bool] = True
     priority: Optional[int] = 0
@@ -33,6 +34,7 @@ class Item(BaseModel):
     id: str
     name: str
     description: Optional[str] = None
+    notes: Optional[str] = None
     tags: Optional[list[str]] = None
     active: bool
     priority: int
@@ -83,6 +85,7 @@ def create_item(item: ItemCreate):
         "id": item_id,
         "name": item.name,
         "description": item.description,
+        "notes": item.notes,
         "tags": item.tags,
         "active": item.active if item.active is not None else True,
         "priority": item.priority if item.priority is not None else 0,
@@ -122,6 +125,7 @@ def update_item(item_id: str, item: ItemCreate):
         raise HTTPException(status_code=404, detail="Item not found")
     items_db[item_id]["name"] = item.name
     items_db[item_id]["description"] = item.description
+    items_db[item_id]["notes"] = item.notes
     items_db[item_id]["tags"] = item.tags
     items_db[item_id]["active"] = item.active if item.active is not None else True
     items_db[item_id]["priority"] = item.priority if item.priority is not None else 0

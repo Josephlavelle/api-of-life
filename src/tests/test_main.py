@@ -594,3 +594,22 @@ def test_sort_items_by_priority_descending(client):
     assert items[0]["priority"] == 5
     assert items[1]["priority"] == 3
     assert items[2]["priority"] == 1
+
+
+def test_create_item_with_notes(client):
+    """Test creating an item with notes."""
+    response = client.post("/items", json={"name": "Item", "notes": "Some additional context"})
+    assert response.status_code == 201
+    data = response.json()
+    assert data["notes"] == "Some additional context"
+
+
+def test_update_item_with_notes(client):
+    """Test updating an item's notes."""
+    create_response = client.post("/items", json={"name": "Item", "notes": "Old notes"})
+    item_id = create_response.json()["id"]
+
+    response = client.put(f"/items/{item_id}", json={"name": "Item", "notes": "Updated notes"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["notes"] == "Updated notes"
