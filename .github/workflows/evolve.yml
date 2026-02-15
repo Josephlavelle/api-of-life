@@ -176,7 +176,7 @@ jobs:
 
           Auto-evolved on ${{ steps.setup.outputs.date }} at ${{ steps.setup.outputs.time }}
 
-          Triggered by: GitHub Actions                                       
+          Triggered by: GitHub Actions"
 
       - name: Phase 5 - Update history
         if: ${{ steps.commit.outputs.has_changes == 'true' && inputs.test_mode != true }}
