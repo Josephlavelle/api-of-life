@@ -273,3 +273,17 @@ src/tests/test_main.py
 ```
 
 ---
+
+## 2026-02-16 - FEATURE: Search items by notes
+
+**Time:** 04:12:23
+
+**Trigger:** GitHub Actions
+
+**Files Changed:**
+```
+src/main.py
+src/tests/test_main.py
+```
+
+---

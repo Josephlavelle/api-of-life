@@ -55,7 +55,8 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
     if search:
         search_lower = search.lower()
         items = [item for item in items if search_lower in item["name"].lower() or
-                 (item["description"] and search_lower in item["description"].lower())]
+                 (item["description"] and search_lower in item["description"].lower()) or
+                 (item.get("notes") and search_lower in item["notes"].lower())]
     if created_after:
         items = [item for item in items if item["created_at"] >= created_after]
     if created_before:

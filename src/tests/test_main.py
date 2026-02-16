@@ -613,3 +613,30 @@ def test_update_item_with_notes(client):
     assert response.status_code == 200
     data = response.json()
     assert data["notes"] == "Updated notes"
+
+
+def test_search_items_by_notes(client):
+    """Test searching items by notes field."""
+    client.post("/items", json={"name": "Item 1", "notes": "Meeting scheduled for tomorrow"})
+    client.post("/items", json={"name": "Item 2", "notes": "Follow up with client"})
+    client.post("/items", json={"name": "Item 3", "notes": "Schedule next meeting"})
+
+    response = client.get("/items?search=meeting")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    names = [item["name"] for item in items]
+    assert "Item 1" in names
+    assert "Item 3" in names
+
+
+def test_search_items_by_name_description_or_notes(client):
+    """Test searching items matches name, description, or notes."""
+    client.post("/items", json={"name": "Project Alpha", "description": "Initial setup", "notes": "Check budget"})
+    client.post("/items", json={"name": "Budget Review", "description": "Monthly financial check", "notes": "Due next week"})
+    client.post("/items", json={"name": "Team Meeting", "description": "Weekly sync", "notes": "Discuss budget allocation"})
+
+    response = client.get("/items?search=budget")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
