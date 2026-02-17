@@ -640,3 +640,35 @@ def test_search_items_by_name_description_or_notes(client):
     assert response.status_code == 200
     items = response.json()
     assert len(items) == 3
+
+
+def test_filter_items_by_multiple_tags(client):
+    """Test filtering items by multiple tags (comma-separated)."""
+    client.post("/items", json={"name": "Item 1", "tags": ["work", "urgent"]})
+    client.post("/items", json={"name": "Item 2", "tags": ["personal", "urgent"]})
+    client.post("/items", json={"name": "Item 3", "tags": ["work"]})
+    client.post("/items", json={"name": "Item 4", "tags": ["personal"]})
+
+    response = client.get("/items?tags=work,urgent")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 3
+    names = [item["name"] for item in items]
+    assert "Item 1" in names
+    assert "Item 2" in names
+    assert "Item 3" in names
+
+
+def test_filter_items_by_multiple_tags_with_spaces(client):
+    """Test filtering items by multiple tags with spaces in query."""
+    client.post("/items", json={"name": "Item 1", "tags": ["work", "important"]})
+    client.post("/items", json={"name": "Item 2", "tags": ["personal"]})
+    client.post("/items", json={"name": "Item 3", "tags": ["work"]})
+
+    response = client.get("/items?tags=work, important")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 2
+    names = [item["name"] for item in items]
+    assert "Item 1" in names
+    assert "Item 3" in names

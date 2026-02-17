@@ -62,7 +62,8 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
     if created_before:
         items = [item for item in items if item["created_at"] <= created_before]
     if tags:
-        items = [item for item in items if tags in item.get("tags", [])]
+        tag_list = [tag.strip() for tag in tags.split(",")]
+        items = [item for item in items if any(tag in item.get("tags", []) for tag in tag_list)]
     if active is not None:
         items = [item for item in items if item.get("active") == active]
     if priority is not None:
