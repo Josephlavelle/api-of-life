@@ -49,7 +49,7 @@ def health_check():
 
 
 @app.get("/items", response_model=list[Item])
-def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, sort_by: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None, offset: Optional[int] = None, active: Optional[bool] = None, priority: Optional[int] = None):
+def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, sort_by: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None, offset: Optional[int] = None, active: Optional[bool] = None, priority: Optional[int] = None, min_priority: Optional[int] = None, max_priority: Optional[int] = None):
     """List all items in the store. Optionally filter by name or description, sort by name or creation date, paginate with offset and limit results."""
     items = list(items_db.values())
     if search:
@@ -68,6 +68,10 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
         items = [item for item in items if item.get("active") == active]
     if priority is not None:
         items = [item for item in items if item.get("priority") == priority]
+    if min_priority is not None:
+        items = [i for i in items if i["priority"] >= min_priority]
+    if max_priority is not None:
+        items = [i for i in items if i["priority"] <= max_priority]
     if sort in ["asc", "desc"]:
         sort_key = sort_by if sort_by in ["name", "created_at", "priority"] else "created_at"
         items = sorted(items, key=lambda x: x[sort_key], reverse=(sort == "desc"))

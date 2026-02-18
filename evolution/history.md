@@ -301,3 +301,17 @@ src/tests/test_main.py
 ```
 
 ---
+
+## 2026-02-18 - FEATURE: Filter items by priority range
+
+**Time:** 04:09:59
+
+**Trigger:** GitHub Actions
+
+**Files Changed:**
+```
+src/main.py
+src/tests/test_main.py
+```
+
+---

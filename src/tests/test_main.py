@@ -596,6 +596,45 @@ def test_sort_items_by_priority_descending(client):
     assert items[2]["priority"] == 1
 
 
+def test_filter_items_by_min_priority(client):
+    """Test filtering items by minimum priority."""
+    client.post("/items", json={"name": "Low", "priority": 1})
+    client.post("/items", json={"name": "Medium", "priority": 3})
+    client.post("/items", json={"name": "High", "priority": 5})
+
+    response = client.get("/items?min_priority=3")
+    assert response.status_code == 200
+    items = response.json()
+    assert all(item["priority"] >= 3 for item in items)
+    assert len(items) == 2
+
+
+def test_filter_items_by_max_priority(client):
+    """Test filtering items by maximum priority."""
+    client.post("/items", json={"name": "Low", "priority": 1})
+    client.post("/items", json={"name": "Medium", "priority": 3})
+    client.post("/items", json={"name": "High", "priority": 5})
+
+    response = client.get("/items?max_priority=3")
+    assert response.status_code == 200
+    items = response.json()
+    assert all(item["priority"] <= 3 for item in items)
+    assert len(items) == 2
+
+
+def test_filter_items_by_priority_range(client):
+    """Test filtering items by priority range (min and max)."""
+    client.post("/items", json={"name": "Low", "priority": 1})
+    client.post("/items", json={"name": "Medium", "priority": 3})
+    client.post("/items", json={"name": "High", "priority": 5})
+
+    response = client.get("/items?min_priority=2&max_priority=4")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 1
+    assert items[0]["priority"] == 3
+
+
 def test_create_item_with_notes(client):
     """Test creating an item with notes."""
     response = client.post("/items", json={"name": "Item", "notes": "Some additional context"})
