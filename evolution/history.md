@@ -315,3 +315,17 @@ src/tests/test_main.py
 ```
 
 ---
+
+## 2026-02-19 - FEATURE: Sort by updated_at field
+
+**Time:** 04:08:42
+
+**Trigger:** GitHub Actions
+
+**Files Changed:**
+```
+src/main.py
+src/tests/test_main.py
+```
+
+---

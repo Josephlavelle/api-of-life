@@ -73,7 +73,7 @@ def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: 
     if max_priority is not None:
         items = [i for i in items if i["priority"] <= max_priority]
     if sort in ["asc", "desc"]:
-        sort_key = sort_by if sort_by in ["name", "created_at", "priority"] else "created_at"
+        sort_key = sort_by if sort_by in ["name", "created_at", "updated_at", "priority"] else "created_at"
         items = sorted(items, key=lambda x: x[sort_key], reverse=(sort == "desc"))
     if offset is not None:
         items = items[offset:]

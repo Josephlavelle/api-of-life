@@ -698,6 +698,21 @@ def test_filter_items_by_multiple_tags(client):
     assert "Item 3" in names
 
 
+def test_sort_by_updated_at(client):
+    """Test sorting items by updated_at returns recently-updated item first."""
+    r1 = client.post("/items", json={"name": "Item A"})
+    r2 = client.post("/items", json={"name": "Item B"})
+    item_a_id = r1.json()["id"]
+
+    # Update Item A so its updated_at is more recent than Item B's
+    client.put(f"/items/{item_a_id}", json={"name": "Item A Updated"})
+
+    response = client.get("/items?sort=desc&sort_by=updated_at")
+    assert response.status_code == 200
+    items = response.json()
+    assert items[0]["id"] == item_a_id
+
+
 def test_filter_items_by_multiple_tags_with_spaces(client):
     """Test filtering items by multiple tags with spaces in query."""
     client.post("/items", json={"name": "Item 1", "tags": ["work", "important"]})
