@@ -30,6 +30,15 @@ class ItemCreate(BaseModel):
     priority: Optional[int] = 0
 
 
+class ItemPatch(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    notes: Optional[str] = None
+    tags: Optional[list[str]] = None
+    active: Optional[bool] = None
+    priority: Optional[int] = None
+
+
 class Item(BaseModel):
     id: str
     name: str
@@ -136,6 +145,18 @@ def update_item(item_id: str, item: ItemCreate):
     items_db[item_id]["active"] = item.active if item.active is not None else True
     items_db[item_id]["priority"] = item.priority if item.priority is not None else 0
     items_db[item_id]["updated_at"] = datetime.now().isoformat()
+    return items_db[item_id]
+
+
+@app.patch("/items/{item_id}", response_model=Item)
+def patch_item(item_id: str, item: ItemPatch):
+    """Partially update an item by ID."""
+    if item_id not in items_db:
+        raise HTTPException(status_code=404, detail="Item not found")
+    updates = item.model_dump(exclude_none=True)
+    if updates:
+        items_db[item_id].update(updates)
+        items_db[item_id]["updated_at"] = datetime.now().isoformat()
     return items_db[item_id]
 
 

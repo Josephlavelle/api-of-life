@@ -713,6 +713,38 @@ def test_sort_by_updated_at(client):
     assert items[0]["id"] == item_a_id
 
 
+def test_patch_item_single_field(client):
+    """Test patching a single field leaves other fields unchanged."""
+    create_response = client.post("/items", json={"name": "Original", "description": "Desc", "priority": 3})
+    item_id = create_response.json()["id"]
+
+    response = client.patch(f"/items/{item_id}", json={"name": "Patched"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Patched"
+    assert data["description"] == "Desc"
+    assert data["priority"] == 3
+
+
+def test_patch_item_multiple_fields(client):
+    """Test patching multiple fields at once."""
+    create_response = client.post("/items", json={"name": "Original", "priority": 1, "active": True})
+    item_id = create_response.json()["id"]
+
+    response = client.patch(f"/items/{item_id}", json={"priority": 5, "active": False})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Original"
+    assert data["priority"] == 5
+    assert data["active"] is False
+
+
+def test_patch_item_not_found(client):
+    """Test patching a non-existent item returns 404."""
+    response = client.patch("/items/nonexistent-id", json={"name": "X"})
+    assert response.status_code == 404
+
+
 def test_filter_items_by_multiple_tags_with_spaces(client):
     """Test filtering items by multiple tags with spaces in query."""
     client.post("/items", json={"name": "Item 1", "tags": ["work", "important"]})
