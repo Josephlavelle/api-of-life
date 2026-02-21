@@ -745,6 +745,42 @@ def test_patch_item_not_found(client):
     assert response.status_code == 404
 
 
+def test_duplicate_item(client):
+    """Test duplicating an item creates a copy with a new ID."""
+    create_response = client.post("/items", json={"name": "Original", "priority": 3, "tags": ["work"]})
+    item_id = create_response.json()["id"]
+
+    response = client.post(f"/items/{item_id}/duplicate")
+    assert response.status_code == 201
+    data = response.json()
+    assert data["id"] != item_id
+    assert data["name"] == "Original"
+    assert data["priority"] == 3
+    assert data["tags"] == ["work"]
+
+
+def test_duplicate_item_not_found(client):
+    """Test duplicating a non-existent item returns 404."""
+    response = client.post("/items/nonexistent-id/duplicate")
+    assert response.status_code == 404
+
+
+def test_duplicate_item_stored_independently(client):
+    """Test that the duplicate is stored and independent from the original."""
+    create_response = client.post("/items", json={"name": "Source"})
+    item_id = create_response.json()["id"]
+
+    dup_response = client.post(f"/items/{item_id}/duplicate")
+    dup_id = dup_response.json()["id"]
+
+    # Both items exist
+    assert client.get(f"/items/{item_id}").status_code == 200
+    assert client.get(f"/items/{dup_id}").status_code == 200
+
+    # Total count is 2
+    assert client.get("/items/count").json()["count"] == 2
+
+
 def test_filter_items_by_multiple_tags_with_spaces(client):
     """Test filtering items by multiple tags with spaces in query."""
     client.post("/items", json={"name": "Item 1", "tags": ["work", "important"]})

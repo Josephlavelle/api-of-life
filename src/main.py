@@ -160,6 +160,18 @@ def patch_item(item_id: str, item: ItemPatch):
     return items_db[item_id]
 
 
+@app.post("/items/{item_id}/duplicate", response_model=Item, status_code=201)
+def duplicate_item(item_id: str):
+    """Duplicate an existing item with a new ID and fresh timestamps."""
+    if item_id not in items_db:
+        raise HTTPException(status_code=404, detail="Item not found")
+    source = items_db[item_id]
+    now = datetime.now().isoformat()
+    new_item = {**source, "id": str(uuid4()), "created_at": now, "updated_at": now}
+    items_db[new_item["id"]] = new_item
+    return new_item
+
+
 @app.delete("/items/{item_id}", status_code=204)
 def delete_item(item_id: str):
     """Delete an item by ID."""
