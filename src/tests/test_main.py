@@ -781,6 +781,42 @@ def test_duplicate_item_stored_independently(client):
     assert client.get("/items/count").json()["count"] == 2
 
 
+def test_delete_items_by_tag(client):
+    """Test bulk delete by tag only removes matching items."""
+    client.post("/items", json={"name": "Item 1", "tags": ["work", "urgent"]})
+    client.post("/items", json={"name": "Item 2", "tags": ["personal"]})
+    client.post("/items", json={"name": "Item 3", "tags": ["work"]})
+
+    response = client.delete("/items?tag=work")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 2}
+
+    remaining = client.get("/items").json()
+    assert len(remaining) == 1
+    assert remaining[0]["name"] == "Item 2"
+
+
+def test_delete_items_by_tag_no_match(client):
+    """Test bulk delete by tag with no matches returns 0."""
+    client.post("/items", json={"name": "Item 1", "tags": ["personal"]})
+
+    response = client.delete("/items?tag=work")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 0}
+    assert len(client.get("/items").json()) == 1
+
+
+def test_delete_items_by_tag_untagged_items_unaffected(client):
+    """Test that items without tags are not deleted when filtering by tag."""
+    client.post("/items", json={"name": "Tagged", "tags": ["work"]})
+    client.post("/items", json={"name": "Untagged"})
+
+    response = client.delete("/items?tag=work")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 1}
+    assert len(client.get("/items").json()) == 1
+
+
 def test_filter_items_by_multiple_tags_with_spaces(client):
     """Test filtering items by multiple tags with spaces in query."""
     client.post("/items", json={"name": "Item 1", "tags": ["work", "important"]})

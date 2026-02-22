@@ -118,8 +118,13 @@ def get_items_count():
 
 
 @app.delete("/items")
-def delete_all_items():
-    """Delete all items from the store."""
+def delete_all_items(tag: Optional[str] = None):
+    """Delete all items from the store, or only those matching a specific tag."""
+    if tag is not None:
+        to_delete = [k for k, v in items_db.items() if tag in (v.get("tags") or [])]
+        for k in to_delete:
+            del items_db[k]
+        return {"deleted": len(to_delete)}
     count = len(items_db)
     items_db.clear()
     return {"deleted": count}

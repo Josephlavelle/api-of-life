@@ -357,3 +357,17 @@ src/tests/test_main.py
 ```
 
 ---
+
+## 2026-02-22 - FEATURE: Bulk delete items by tag
+
+**Time:** 04:05:40
+
+**Trigger:** GitHub Actions
+
+**Files Changed:**
+```
+src/main.py
+src/tests/test_main.py
+```
+
+---
