@@ -58,14 +58,16 @@ def health_check():
 
 
 @app.get("/items", response_model=list[Item])
-def list_items(search: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, sort_by: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None, offset: Optional[int] = None, active: Optional[bool] = None, priority: Optional[int] = None, min_priority: Optional[int] = None, max_priority: Optional[int] = None):
+def list_items(search: Optional[str] = None, search_fields: Optional[str] = None, limit: Optional[int] = None, sort: Optional[str] = None, sort_by: Optional[str] = None, created_after: Optional[str] = None, created_before: Optional[str] = None, tags: Optional[str] = None, offset: Optional[int] = None, active: Optional[bool] = None, priority: Optional[int] = None, min_priority: Optional[int] = None, max_priority: Optional[int] = None):
     """List all items in the store. Optionally filter by name or description, sort by name or creation date, paginate with offset and limit results."""
     items = list(items_db.values())
     if search:
         search_lower = search.lower()
-        items = [item for item in items if search_lower in item["name"].lower() or
-                 (item["description"] and search_lower in item["description"].lower()) or
-                 (item.get("notes") and search_lower in item["notes"].lower())]
+        fields = set(search_fields.split(",")) if search_fields else {"name", "description", "notes"}
+        items = [item for item in items if
+                 ("name" in fields and search_lower in item["name"].lower()) or
+                 ("description" in fields and item["description"] and search_lower in item["description"].lower()) or
+                 ("notes" in fields and item.get("notes") and search_lower in item["notes"].lower())]
     if created_after:
         items = [item for item in items if item["created_at"] >= created_after]
     if created_before:

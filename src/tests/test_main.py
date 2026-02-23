@@ -681,6 +681,39 @@ def test_search_items_by_name_description_or_notes(client):
     assert len(items) == 3
 
 
+def test_search_fields_name_only(client):
+    """Test search_fields=name restricts search to name field only."""
+    client.post("/items", json={"name": "Alpha Project", "description": "budget tracking", "notes": "budget notes"})
+    client.post("/items", json={"name": "Budget Review", "description": "Monthly check", "notes": "Due soon"})
+
+    response = client.get("/items?search=budget&search_fields=name")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 1
+    assert items[0]["name"] == "Budget Review"
+
+
+def test_search_fields_multiple(client):
+    """Test search_fields=name,description searches only those two fields."""
+    client.post("/items", json={"name": "Alpha", "description": "budget info", "notes": "budget notes"})
+    client.post("/items", json={"name": "Beta", "description": "unrelated", "notes": "budget allocation"})
+
+    response = client.get("/items?search=budget&search_fields=name,description")
+    assert response.status_code == 200
+    items = response.json()
+    assert len(items) == 1
+    assert items[0]["name"] == "Alpha"
+
+
+def test_search_fields_default_behavior(client):
+    """Test that omitting search_fields still searches all fields."""
+    client.post("/items", json={"name": "Alpha", "description": "nothing", "notes": "budget note"})
+
+    response = client.get("/items?search=budget")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
 def test_filter_items_by_multiple_tags(client):
     """Test filtering items by multiple tags (comma-separated)."""
     client.post("/items", json={"name": "Item 1", "tags": ["work", "urgent"]})

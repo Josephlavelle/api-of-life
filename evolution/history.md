@@ -371,3 +371,17 @@ src/tests/test_main.py
 ```
 
 ---
+
+## 2026-02-23 - FEATURE: Search items by name only
+
+**Time:** 04:11:30
+
+**Trigger:** GitHub Actions
+
+**Files Changed:**
+```
+src/main.py
+src/tests/test_main.py
+```
+
+---
